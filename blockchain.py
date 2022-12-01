@@ -85,7 +85,7 @@ class Blockchain:
 
         return False
 
-    def new_block(self, proof, previous_hash):
+    def new_block(self, proof, previous_hash, hash="0"):
         """
         Create a new Block in the Blockchain
         :param proof: The proof given by the Proof of Work algorithm
@@ -101,7 +101,7 @@ class Blockchain:
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
             'hash': "0"
         }
-        block['hash'] = self.hash(block)
+        block['hash'] = hash
 
         # Reset the current list of transactions
         self.current_transactions = []
@@ -153,7 +153,7 @@ class Blockchain:
         while self.valid_proof(block_values, proof) is False:
             proof += 1
 
-        return proof
+        return proof, self.valid_proof(block_values, proof)
 
     @staticmethod
     def valid_proof(block_values, proof):
@@ -166,4 +166,8 @@ class Blockchain:
 
         guess = f'{block_values}{proof}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
-        return guess_hash[:5] == "00000"
+        print(guess_hash)
+        if guess_hash[:5] == "00000":
+            return guess_hash
+        else:
+            return False

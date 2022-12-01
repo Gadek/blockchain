@@ -19,8 +19,8 @@ def mine():
     last_block = blockchain.last_block
     last_proof = last_block['proof']
     # Forge the new Block by adding it to the chain
-    previous_hash = blockchain.hash(last_block)
-    proof = blockchain.proof_of_work(last_block)
+    previous_hash = blockchain.last_block["hash"]
+    proof, hash = blockchain.proof_of_work(last_block)
 
     # We must receive a reward for finding the proof.
     # The sender is "0" to signify that this node has mined a new coin.
@@ -31,7 +31,7 @@ def mine():
     )
 
 
-    block = blockchain.new_block(proof, previous_hash)
+    block = blockchain.new_block(proof, previous_hash, hash)
 
     response = {
         'message': "New Block Forged",
@@ -39,6 +39,7 @@ def mine():
         'transactions': block['transactions'],
         'proof': block['proof'],
         'previous_hash': block['previous_hash'],
+        'hash': block['hash']
     }
     return jsonify(response), 200
 
