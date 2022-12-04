@@ -13,7 +13,7 @@ class Blockchain:
         self.nodes = set()
 
         # Create the genesis block
-        self.new_block(previous_hash='1', proof=100)
+        self.genesis_block(previous_hash='1', proof=100)
 
     def register_node(self, address):
         """
@@ -36,15 +36,18 @@ class Blockchain:
 
         while current_index < len(chain):
             block = chain[current_index]
+            # block_values = [block["index"], block["timestamp"], block["transactions"], block["proof"], block["previous_hash"]]
             print(f'{last_block}')
             print(f'{block}')
             print("\n-----------\n")
             # Check that the hash of the block is correct
             if block['previous_hash'] != self.hash(last_block):
+                print("block['previous_hash'] != self.hash(last_block)")
                 return False
 
             # Check that the Proof of Work is correct
-            if not self.valid_proof(last_block['proof'], block['proof']):
+            if not self.valid_proof(block):
+                print("self.valid_proof(block)")
                 return False
 
             last_block = block
@@ -61,6 +64,7 @@ class Blockchain:
 
         neighbours = self.nodes
         new_chain = None
+        print("sasiedzi", neighbours)
 
         # We're only looking for chains longer than ours
         max_length = len(self.chain)
@@ -74,6 +78,9 @@ class Blockchain:
                 chain = response.json()['chain']
 
                 # Check if the length is longer and the chain is valid
+                print("length > max_length", length > max_length)
+                print("self.valid_chain(chain)", self.valid_chain(chain))
+
                 if length > max_length and self.valid_chain(chain):
                     max_length = length
                     new_chain = chain
@@ -85,28 +92,37 @@ class Blockchain:
 
         return False
 
-    def new_block(self, proof, previous_hash, hash="0"):
+    def genesis_block(self, proof, previous_hash, hash="0"):
         """
         Create a new Block in the Blockchain
         :param proof: The proof given by the Proof of Work algorithm
         :param previous_hash: Hash of previous Block
         :return: New Block
         """
-
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
-            'transactions': self.current_transactions,
-            'proof': proof,
-            'previous_hash': previous_hash or self.hash(self.chain[-1]),
+            'transactions': "",
+            'proof': 0,
+            'previous_hash': "0",
             'hash': "0"
         }
-        block['hash'] = hash
+        block['hash'] = self.proof_of_work(block)
+        self.chain.append(block)
+        # block = {
+        #     'index': len(self.chain) + 1,
+        #     'timestamp': time(),
+        #     'transactions': self.current_transactions,
+        #     'proof': proof,
+        #     'previous_hash': previous_hash or self.hash(self.chain[-1]),
+        #     'hash': "0"
+        # }
+        # block['hash'] = self.hash(block)
 
         # Reset the current list of transactions
-        self.current_transactions = []
-
-        self.chain.append(block)
+        # self.current_transactions = []
+        #
+        # self.chain.append(block)
         return block
 
     def new_transaction(self, sender, recipient, amount):
@@ -118,9 +134,9 @@ class Blockchain:
         :return: The index of the Block that will hold this transaction
         """
         self.current_transactions.append({
-            'sender': sender,
-            'recipient': recipient,
             'amount': amount,
+            'recipient': recipient,
+            'sender': sender,
         })
 
         return self.last_block['index'] + 1
@@ -148,15 +164,15 @@ class Blockchain:
          - p is the previous proof, and p' is the new proof
         """
 
-        proof = 0
-        block_values = [block["index"], block["timestamp"], block["transactions"], block["proof"], block["previous_hash"]]
-        while self.valid_proof(block_values, proof) is False:
-            proof += 1
+        block["proof"] = 0
 
-        return proof, self.valid_proof(block_values, proof)
+        while self.valid_proof(block) is False:
+            block["proof"] += 1
+
+        return self.valid_proof(block)
 
     @staticmethod
-    def valid_proof(block_values, proof):
+    def valid_proof(block):
         """
         Validates the Proof
         :param last_proof: Previous Proof
@@ -164,10 +180,12 @@ class Blockchain:
         :return: True if correct, False if not.
         """
 
-        guess = f'{block_values}{proof}'.encode()
+        block_values = [block["index"], block["timestamp"], block["transactions"], block["proof"], block["previous_hash"]]
+
+        guess = f'{block_values}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
         print(guess_hash)
-        if guess_hash[:5] == "00000":
+        if guess_hash[:4] == "0000":
             return guess_hash
         else:
             return False
