@@ -1,6 +1,6 @@
 
 from uuid import uuid4
-
+from time import time
 
 from flask import Flask, jsonify, request
 from blockchain import Blockchain
@@ -15,23 +15,29 @@ app = Flask(__name__)
 
 @app.route('/mine', methods=['GET'])
 def mine():
-    # We run the proof of work algorithm to get the next proof...
-    last_block = blockchain.last_block
-    last_proof = last_block['proof']
-    # Forge the new Block by adding it to the chain
-    previous_hash = blockchain.last_block["hash"]
-    proof, hash = blockchain.proof_of_work(last_block)
+    block = {
+        'index': len(blockchain.chain) + 1,
+        'timestamp': time(),
+        'transactions': blockchain.current_transactions,
+        'proof': 0,
+        'previous_hash': blockchain.last_block['hash'],
+        'hash': "0"
+    }
+
+    block['hash'] = blockchain.proof_of_work(block)
 
     # We must receive a reward for finding the proof.
     # The sender is "0" to signify that this node has mined a new coin.
-    blockchain.new_transaction(
-        sender="0",
-        recipient=node_identifier,
-        amount=1,
-    )
+    # blockchain.new_transaction(
+    #     sender="0",
+    #     recipient=node_identifier,
+    #     amount=1,
+    # )
+    blockchain.current_transactions = []
 
+    blockchain.chain.append(block)
 
-    block = blockchain.new_block(proof, previous_hash, hash)
+    # new_block = blockchain.new_block(proof, hash)
 
     response = {
         'message': "New Block Forged",
@@ -118,4 +124,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     port = args.port
 
-    app.run(host='127.0.0.1', port=port)
+    app.run(host='0.0.0.0', port=port)
