@@ -2,9 +2,9 @@ import hashlib
 import json
 from time import time
 from urllib.parse import urlparse
-
+import pickle
 import requests
-
+import asyncio
 
 class Blockchain:
     def __init__(self,register_ip):
@@ -19,7 +19,28 @@ class Blockchain:
             self.register_node(register_ip)
             self.resolve_conflicts()
 
+    def vote(self,block):
+        neighbours = self.nodes
+        all_neighbours = len(neighbours)
+        count_neighbours = 0
+        for node in neighbours:
+            block_pickle = pickle.dumps(block)
+            response = requests.post(f'http://{node}/verify', data=block_pickle)
+            if response.status_code == 201:
+                count_neighbours += 1
+                print(f'node {node} accepts a new block')
+            elif response.status_code == 200:
+                print(f'node {node} does not accept a new block')
+            else:
+                print('other status code returned')
 
+        if count_neighbours > all_neighbours // 2:
+            self.current_transactions = []
+            self.chain.append(block)
+            # new_block = blockchain.new_block(proof, hash)
+            return True
+        else:
+            return False
     def register_node(self, address):
         """
         Add a new node to the list of nodes
@@ -52,7 +73,6 @@ class Blockchain:
 
         while current_index < len(chain):
             block = chain[current_index]
-            # block_values = [block["index"], block["timestamp"], block["transactions"], block["proof"], block["previous_hash"]]
             print(f'{last_block}')
             print(f'{block}')
             print("\n-----------\n")

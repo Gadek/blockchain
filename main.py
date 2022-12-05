@@ -1,6 +1,7 @@
 
 from uuid import uuid4
 from time import time
+import threading
 
 from flask import Flask, jsonify, request
 from blockchain import Blockchain
@@ -15,6 +16,7 @@ app = Flask(__name__)
 
 @app.route('/mine', methods=['GET'])
 def mine():
+
     block = {
         'index': len(blockchain.chain) + 1,
         'timestamp': time(),
@@ -33,27 +35,9 @@ def mine():
     #     recipient=node_identifier,
     #     amount=1,
     # )
+    voters_agree = blockchain.vote(block)
 
-    neighbours = blockchain.nodes
-    all_neighbours = len(neighbours)
-    count_neighbours = 0
-    for node in neighbours:
-        block_pickle = pickle.dumps(block)
-        response = requests.post(f'http://{node}/verify', data=block_pickle)
-        if response.status_code == 201:
-            count_neighbours += 1
-            print(f'node {node} accepts a new block')
-        elif response.status_code == 200:
-            print(f'node {node} does not accept a new block')
-        else:
-            print('other status code returned')
-
-    if count_neighbours > all_neighbours//2:
-
-        blockchain.current_transactions = []
-        blockchain.chain.append(block)
-        # new_block = blockchain.new_block(proof, hash)
-
+    if voters_agree:
         response = {
             'message': "New Block Forged",
             'index': block['index'],
@@ -62,12 +46,12 @@ def mine():
             'previous_hash': block['previous_hash'],
             'hash': block['hash']
         }
-        return jsonify(response), 200
     else:
         response = {
             'message': "Did not forge new block",
         }
-        return jsonify(response), 200
+    return jsonify(response), 200
+
 
 
 @app.route('/transactions/new', methods=['POST'])
