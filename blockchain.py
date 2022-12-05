@@ -7,13 +7,18 @@ import requests
 
 
 class Blockchain:
-    def __init__(self):
+    def __init__(self,register_ip):
         self.current_transactions = []
         self.chain = []
         self.nodes = set()
 
-        # Create the genesis block
-        self.genesis_block(previous_hash='1', proof=100)
+        if register_ip == "127.0.0.1":
+            # Create the genesis block
+            self.genesis_block(previous_hash='1', proof=100)
+        else:
+            self.register_node(register_ip)
+            self.resolve_conflicts()
+
 
     def register_node(self, address):
         """
@@ -24,6 +29,17 @@ class Blockchain:
         parsed_url = urlparse(address)
         self.nodes.add(parsed_url.netloc)
 
+    def valid_block(self, block):
+        # Check that the hash of the block is correct
+        if block['previous_hash'] != self.hash(self.last_block):
+            print("block['previous_hash'] != self.hash(self.chain[-1])")
+            return False
+
+        # Check that the Proof of Work is correct
+        if not self.valid_proof(block):
+            print("self.valid_proof(block)")
+            return False
+        return True
     def valid_chain(self, chain):
         """
         Determine if a given blockchain is valid
@@ -185,7 +201,7 @@ class Blockchain:
         guess = f'{block_values}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
         print(guess_hash)
-        if guess_hash[:4] == "0000":
+        if guess_hash[:3] == "000":
             return guess_hash
         else:
             return False

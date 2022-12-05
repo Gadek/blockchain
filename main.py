@@ -5,8 +5,8 @@ from time import time
 from flask import Flask, jsonify, request
 from blockchain import Blockchain
 from flask import request
-
-
+import requests
+import pickle
 # Instantiate the Node
 app = Flask(__name__)
 
@@ -33,21 +33,41 @@ def mine():
     #     recipient=node_identifier,
     #     amount=1,
     # )
-    blockchain.current_transactions = []
 
-    blockchain.chain.append(block)
+    neighbours = blockchain.nodes
+    all_neighbours = len(neighbours)
+    count_neighbours = 0
+    for node in neighbours:
+        block_pickle = pickle.dumps(block)
+        response = requests.post(f'http://{node}/verify', data=block_pickle)
+        if response.status_code == 201:
+            count_neighbours += 1
+            print(f'node {node} accepts a new block')
+        elif response.status_code == 200:
+            print(f'node {node} does not accept a new block')
+        else:
+            print('other status code returned')
 
-    # new_block = blockchain.new_block(proof, hash)
+    if count_neighbours > all_neighbours//2:
 
-    response = {
-        'message': "New Block Forged",
-        'index': block['index'],
-        'transactions': block['transactions'],
-        'proof': block['proof'],
-        'previous_hash': block['previous_hash'],
-        'hash': block['hash']
-    }
-    return jsonify(response), 200
+        blockchain.current_transactions = []
+        blockchain.chain.append(block)
+        # new_block = blockchain.new_block(proof, hash)
+
+        response = {
+            'message': "New Block Forged",
+            'index': block['index'],
+            'transactions': block['transactions'],
+            'proof': block['proof'],
+            'previous_hash': block['previous_hash'],
+            'hash': block['hash']
+        }
+        return jsonify(response), 200
+    else:
+        response = {
+            'message': "Did not forge new block",
+        }
+        return jsonify(response), 200
 
 
 @app.route('/transactions/new', methods=['POST'])
@@ -63,6 +83,22 @@ def new_transaction():
 
     response = {'message': f'Transaction will be added to Block {index}'}
     return jsonify(response), 201
+
+@app.route('/verify', methods=['POST'])
+def verify():
+    value = request.get_data()
+    block = pickle.loads(value)
+
+    print(block)
+    is_valid = blockchain.valid_block(block)
+    if is_valid:
+        response = {'message': f'Block is valid'}
+        blockchain.current_transactions = []
+        blockchain.chain.append(block)
+        return jsonify(response), 201
+    if not is_valid:
+        response = {'message': f'Block not is valid'}
+        return jsonify(response), 200
 
 
 @app.route('/chain', methods=['GET'])
@@ -117,11 +153,14 @@ if __name__ == '__main__':
     # Generate a globally unique address for this node
     node_identifier = str(uuid4()).replace('-', '')
 
-    # Instantiate the Blockchain
-    blockchain = Blockchain()
     parser = ArgumentParser()
     parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
+    parser.add_argument('-r', '--register', default="127.0.0.1", type=str, help='ip address of node of existing blockchain')
     args = parser.parse_args()
     port = args.port
+    register = args.register
+    print("heeej", register)
+    # Instantiate the Blockchain
+    blockchain = Blockchain(register)
 
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='192.168.56.7', port=port)
